@@ -1,44 +1,46 @@
-import { createEngine } from "../_shared/engine.js"
-import { Spring } from "../_shared/spring.js"
+import { createEngine } from "../_shared/engine.js";
+import { Spring } from "../_shared/spring.js";
 
-const { renderer, input, math, run, finish, } = createEngine()
-const { ctx, canvas } = renderer
-run(update)
+const canvas = document.getElementById("wall");
+const ctx = canvas.getContext("2d");
 
-const spring = new Spring({
-	position: -canvas.width,
-	frequency: 0.50,
-	halfLife: 0.3
-})
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
+const brickW = 300;
+const brickH = 78;
 
-function update(dt) {
+const bricks = [];
 
-	if (input.isPressed()) {
-		spring.target = canvas.width
-	}
-	else {
-		spring.target = 0
-	}
+const rows = Math.ceil(canvas.height / brickH);
+const cols = Math.ceil(canvas.width / brickW);
 
-	spring.step(dt)
+for (let r = 0; r < rows; r++) {
+  const offset = r % 2 === 0 ? 0 : -brickW / 2;
+  const startCol = r % 2 === 0 ? 0 : -1;
 
-	const x = canvas.width / 2 + spring.position;
-	const y = canvas.height / 2;
+  for (let c = startCol; c <= cols; c++) {
+    let x = c * brickW + offset;
+    let y = r * brickH;
 
-	ctx.fillStyle = "black"
-	ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-	ctx.fillStyle = "white"
-	ctx.textBaseline = "middle"
-	ctx.font = `${canvas.height}px Helvetica Neue, Helvetica , bold`
-	ctx.textAlign = "center"
-	ctx.translate(x, y)
-	ctx.rotate(math.toRadian(-spring.velocity * 0.03))
-	ctx.fillText("1", 0, 0)
-
-	if (spring.position >= canvas.width - 10) {
-		finish()
-	}
-
+    bricks.push({ x, y, w: brickW, h: brickH });
+  }
 }
+
+ctx.fillStyle = "#932730";
+bricks.forEach((brick) => {
+  ctx.fillRect(brick.x, brick.y, brick.w, brick.h);
+});
+
+ctx.strokeStyle = "black";
+ctx.lineWidth = 2;
+
+bricks.forEach((brick) => {
+  ctx.strokeRect(brick.x, brick.y, brick.w, brick.h);
+});
+
+ctx.fillStyle = "black";
+ctx.font = "900px helvetica";
+ctx.textAlign = "center";
+ctx.textBaseline = "middle";
+ctx.fillText("3", canvas.width / 2, canvas.height / 2 + 30);
