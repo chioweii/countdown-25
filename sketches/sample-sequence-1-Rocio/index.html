@@ -34,9 +34,16 @@
         src: url("assets-02/TWK-Continental.otf") format("opentype");
       }
 
-      #numberTwo {
+      #numberOne {
         user-select: none;
         pointer-events: none;
+      }
+
+      #numberOne {
+        user-select: none;
+        pointer-events: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
       }
 
       /* ----------------------------------
@@ -55,32 +62,36 @@
   <body>
     <div class="container">
       <svg id="zipperSVG" viewBox="0 0 300 600">
-        <!-- Outside background -->
         <rect width="300" height="600" fill="#8cb3ff"></rect>
 
-        <!-- Inside -->
-        <rect id="inside" width="300" height="600" fill="#f1f1f1"></rect>
+        <rect id="insideBackground" width="300" height="600" fill="#000"></rect>
 
-        <!-- Number (fixed) -->
+        <image
+          id="inside"
+          x="-8"
+          y="0"
+          width="400"
+          height="600"
+          href="./assets-02/boxers.svg"
+        />
+
         <text
-          id="numberTwo"
-          x="130"
+          id="numberOne"
+          x="140"
           y="350"
           font-family="TWK, sans-serif"
           font-size="600"
           font-weight="bold"
           text-anchor="middle"
           dominant-baseline="middle"
-          fill="#000"
+          fill="#f1f1f1"
         >
           1
         </text>
 
-        <!-- Flaps -->
         <path id="leftFlap" fill="#8cb3ff"></path>
         <path id="rightFlap" fill="#8cb3ff"></path>
 
-        <!-- Zipper line -->
         <path
           id="zipLine"
           stroke="#333"
@@ -88,7 +99,6 @@
           stroke-linecap="round"
         ></path>
 
-        <!-- Pockets -->
         <image
           id="pockets"
           x="-780"
@@ -97,6 +107,7 @@
           height="1000"
           href="./assets-02/pockets.svg"
         />
+
         <image
           id="pockets2"
           x="780"
@@ -107,7 +118,21 @@
           transform="scale(-1, 1) translate(-1850, 0)"
         />
 
-        <!-- Zipper slider -->
+        <g id="bottomDecoration" transform="translate(186, -75)">
+          <defs>
+            <style>
+              .bottom-stroke {
+                fill: none;
+                stroke: #000;
+                stroke-miterlimit: 10;
+                stroke-width: 3px;
+              }
+            </style>
+          </defs>
+          <circle class="bottom-stroke" cx="0" cy="0" r="41.69" />
+          <line class="bottom-stroke" x1="41.69" y1="0" x2="90.64" y2="0" />
+        </g>
+
         <image
           id="zipperCursor"
           width="50"

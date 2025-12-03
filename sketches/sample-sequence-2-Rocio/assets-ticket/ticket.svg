@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 453.32 556.27">
+  <defs>
+    <style>
+      .cls-1 {
+        letter-spacing: 0em;
+      }
+
+      .cls-2 {
+        stroke: #9ca6b7;
+        stroke-width: 11.13px;
+      }
+
+      .cls-2, .cls-3 {
+        fill: #446eb1;
+      }
+
+      .cls-2, .cls-4, .cls-5, .cls-6, .cls-7 {
+        stroke-miterlimit: 10;
+      }
+
+      .cls-8, .cls-5 {
+        fill: #aecfff;
+      }
+
+      .cls-4 {
+        fill: #9ca6b7;
+        font-family: TWKContinental-CompactBook, 'TWK Continental';
+        font-size: 210.99px;
+        stroke: #fff;
+        stroke-width: 1.44px;
+      }
+
+      .cls-5, .cls-6 {
+        stroke-width: 1.98px;
+      }
+
+      .cls-5, .cls-6, .cls-7 {
+        stroke: #000;
+      }
+
+      .cls-6, .cls-7 {
+        fill: #efede4;
+      }
+
+      .cls-9 {
+        letter-spacing: 0em;
+      }
+
+      .cls-7 {
+        stroke-width: 1.42px;
+      }
+    </style>
+  </defs>
+  <rect class="cls-6" x="6.94" y="5.73" width="441.38" height="545.72"/>
+  <rect class="cls-5" x="25.68" y="27.76" width="403.89" height="501.65"/>
+  <polygon class="cls-3" points="24.68 183.89 227.63 109.69 430.57 183.89 430.57 26.73 24.68 26.73 24.68 183.89"/>
+  <g>
+    <polygon class="cls-7" points="226.78 39.81 237.08 60.67 260.11 64.02 243.45 80.26 247.38 103.2 226.78 92.37 206.18 103.2 210.12 80.26 193.45 64.02 216.48 60.67 226.78 39.81"/>
+    <polygon class="cls-7" points="279.02 69.3 281.53 87.8 298.2 96.21 281.38 104.32 278.53 122.77 265.62 109.28 247.19 112.27 256.03 95.83 247.5 79.22 265.87 82.55 279.02 69.3"/>
+    <polygon class="cls-7" points="174.31 69.3 171.79 87.8 155.13 96.21 171.94 104.32 174.79 122.77 187.7 109.28 206.13 112.27 197.29 95.83 205.83 79.22 187.46 82.55 174.31 69.3"/>
+  </g>
+  <rect class="cls-2" x="46.56" y="285.41" width="361.46" height="219.87"/>
+  <text class="cls-4" transform="translate(40.46 268.14)"><tspan x="0" y="0">J</tspan><tspan class="cls-1" x="36.92" y="0">A</tspan><tspan x="89.88" y="0">CKP</tspan><tspan class="cls-9" x="263.32" y="0">O</tspan><tspan x="320.29" y="0">T</tspan></text>
+  <g>
+    <circle class="cls-8" cx="116.68" cy="395.34" r="48.24"/>
+    <circle class="cls-8" cx="227.29" cy="395.34" r="48.24"/>
+    <circle class="cls-8" cx="337.9" cy="395.34" r="48.24"/>
+  </g>
+  <polygon class="cls-7" points="116.68 360.87 126.97 381.74 150 385.09 133.34 401.33 137.27 424.26 116.68 413.44 96.08 424.26 100.01 401.33 83.35 385.09 106.38 381.74 116.68 360.87"/>
+  <polygon class="cls-7" points="227.63 360.87 237.93 381.74 260.95 385.09 244.29 401.33 248.22 424.26 227.63 413.44 207.03 424.26 210.96 401.33 194.3 385.09 217.33 381.74 227.63 360.87"/>
+</svg>

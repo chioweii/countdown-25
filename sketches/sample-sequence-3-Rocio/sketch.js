@@ -1,3 +1,6 @@
+import { createEngine } from "../_shared/engine.js";
+const { finish } = createEngine();
+
 const canvas = document.getElementById("wall");
 const ctx = canvas.getContext("2d");
 
@@ -13,22 +16,34 @@ const brickW = 300,
 const bricks = [];
 let buildIndex = 0;
 const buildSpeed = 5;
+let brickCounter = 0;
+let numberOpacity = 1; // Track opacity of the "3"
 
-for (let r = 0; r < Math.ceil(canvas.height / brickH); r++) {
+// Only generate bricks for visible viewport
+const viewportWidth = window.innerWidth;
+const viewportHeight = window.innerHeight;
+const maxVisibleHeight = viewportHeight;
+
+for (let r = 0; r < Math.ceil(viewportHeight / brickH); r++) {
   const offset = r % 2 === 0 ? 0 : -brickW / 2;
   for (
     let c = r % 2 === 0 ? 0 : -1;
-    c <= Math.ceil(canvas.width / brickW);
+    c <= Math.ceil(viewportWidth / brickW);
     c++
   ) {
-    bricks.push({
-      x: c * brickW + offset,
-      y: r * brickH,
-      w: brickW,
-      h: brickH,
-      visible: false,
-      vy: 0,
-    });
+    const x = c * brickW + offset;
+    // Only add brick if it's within the visible viewport
+    if (x + brickW > 0 && x < viewportWidth) {
+      bricks.push({
+        x: x,
+        y: r * brickH,
+        w: brickW,
+        h: brickH,
+        visible: false,
+        vy: 0,
+        // index: brickCounter++,
+      });
+    }
   }
 }
 
@@ -40,7 +55,7 @@ setInterval(() => {
 }, buildSpeed);
 
 function isSupported(brick) {
-  if (brick.y + brick.h >= canvas.height) return true;
+  if (brick.y + brick.h >= maxVisibleHeight) return true;
   for (let b of bricks) {
     if (
       b.visible &&
@@ -82,18 +97,29 @@ function update() {
 function draw() {
   const w = window.innerWidth,
     h = window.innerHeight;
-  ctx.fillStyle = "#4599ffff";
+  ctx.fillStyle = "#000000ff";
   ctx.fillRect(0, 0, w, h);
 
-  if (buildIndex >= bricks.length) {
+  // Check if all bricks are gone
+  const visibleBricks = bricks.filter((b) => b.visible);
+  if (buildIndex >= bricks.length && visibleBricks.length === 0) {
+    // All bricks are gone, fade out the number
+    if (numberOpacity > 0) {
+      numberOpacity = Math.max(0, numberOpacity - 0.02);
+    }
+  }
+
+  if (buildIndex >= bricks.length && numberOpacity > 0) {
+    ctx.globalAlpha = numberOpacity;
     ctx.fillStyle = "white";
-    ctx.strokeStyle = "black";
-    ctx.lineWidth = 7;
     ctx.font = "1400px TWK, Arial, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
+    // ctx.strokeStyle = "white";
+    ctx.lineWidth = 3;
     ctx.strokeText("3", w / 2, h / 2 + 80);
     ctx.fillText("3", w / 2, h / 2 + 80);
+    ctx.globalAlpha = 1;
   }
 
   bricks
@@ -105,6 +131,13 @@ function draw() {
       ctx.strokeStyle = "black";
       ctx.lineWidth = 3;
       ctx.strokeRect(brick.x, brick.y, brick.w, brick.h);
+
+      // // Draw brick index number
+      // ctx.fillStyle = "white";
+      // ctx.font = "bold 32px Arial, sans-serif";
+      // ctx.textAlign = "center";
+      // ctx.textBaseline = "middle";
+      // ctx.fillText(brick.index, brick.x + brick.w / 2, brick.y + brick.h / 2);
     });
 }
 

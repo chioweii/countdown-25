@@ -18,7 +18,7 @@ topLine.setAttribute("y1", "0");
 topLine.setAttribute("x2", "10000");
 topLine.setAttribute("y2", "0");
 topLine.setAttribute("stroke", "#000");
-topLine.setAttribute("stroke-width", "3.2");
+topLine.setAttribute("stroke-width", "3");
 svg.appendChild(topLine);
 
 // Slider clip
