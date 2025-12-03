@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zipper Sketch</title>
+
+    <style>
+      /* ----------------------------------
+         GENERAL LAYOUT
+      ---------------------------------- */
+      body {
+        margin: 0;
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: #8cb3ff;
+      }
+
+      .container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: -100px;
+      }
+
+      /* ----------------------------------
+         FONT
+      ---------------------------------- */
+      @font-face {
+        font-family: "TWK";
+        src: url("assets-02/TWK-Continental.otf") format("opentype");
+      }
+
+      #numberTwo {
+        user-select: none;
+        pointer-events: none;
+      }
+
+      /* ----------------------------------
+         SVG
+      ---------------------------------- */
+      #zipperSVG {
+        cursor: pointer;
+        overflow: visible;
+        display: block;
+        width: 100%;
+        height: 600px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <svg id="zipperSVG" viewBox="0 0 300 600">
+        <!-- Outside background -->
+        <rect width="300" height="600" fill="#8cb3ff"></rect>
+
+        <!-- Inside -->
+        <rect id="inside" width="300" height="600" fill="#f1f1f1"></rect>
+
+        <!-- Number (fixed) -->
+        <text
+          id="numberTwo"
+          x="130"
+          y="350"
+          font-family="TWK, sans-serif"
+          font-size="600"
+          font-weight="bold"
+          text-anchor="middle"
+          dominant-baseline="middle"
+          fill="#000"
+        >
+          1
+        </text>
+
+        <!-- Flaps -->
+        <path id="leftFlap" fill="#8cb3ff"></path>
+        <path id="rightFlap" fill="#8cb3ff"></path>
+
+        <!-- Zipper line -->
+        <path
+          id="zipLine"
+          stroke="#333"
+          stroke-width="3.2"
+          stroke-linecap="round"
+        ></path>
+
+        <!-- Pockets -->
+        <image
+          id="pockets"
+          x="-780"
+          y="-283"
+          width="500"
+          height="1000"
+          href="./assets-02/pockets.svg"
+        />
+        <image
+          id="pockets2"
+          x="780"
+          y="-283"
+          width="500"
+          height="1000"
+          href="./assets-02/pockets.svg"
+          transform="scale(-1, 1) translate(-1850, 0)"
+        />
+
+        <!-- Zipper slider -->
+        <image
+          id="zipperCursor"
+          width="50"
+          height="166"
+          href="./assets-02/slider.svg"
+        />
+      </svg>
+    </div>
+
+    <script type="module" src="sketch.js"></script>
+  </body>
+</html>
