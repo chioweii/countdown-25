@@ -57,14 +57,14 @@ function update() {
   openDistance = zipperPosY - topY;
 
   // Check if zipper is fully down
-  if (zipperPosY === bottomY) {
-    finish();
-  }
+  // if (zipperPosY === bottomY) {
+  //   finish();
+  // }
 
   // bg
   ctx.beginPath();
   ctx.rect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "red";
+  ctx.fillStyle = "#446eb1";
   ctx.fill();
 
   // clipping
@@ -79,13 +79,20 @@ function update() {
 
     ctx.beginPath();
     ctx.rect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "white";
+    ctx.fillStyle = "black";
     ctx.fill();
 
-    ctx.beginPath();
-    ctx.ellipse(centerX, centerY, 100, 100, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "green";
-    ctx.fill();
+    // ctx.beginPath();
+    // ctx.ellipse(centerX, centerY, 100, 100, 0, 0, Math.PI * 2);
+    // ctx.fillStyle = "green";
+    // ctx.fill();
+
+    ctx.font = "600px Arial";
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.fillText("1", centerX, centerY);
   }
   ctx.restore();
 
@@ -125,7 +132,7 @@ function update() {
 }
 
 function drawCurve() {
-  const controlX = math.mapClamped(openDistance, 0, zipperRange, 0, 100);
+  const controlX = math.mapClamped(openDistance, 0, zipperRange, 0, 300);
   ctx.moveTo(centerX, topY);
   ctx.bezierCurveTo(
     centerX - controlX,

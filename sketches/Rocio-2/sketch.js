@@ -4,35 +4,36 @@ import { Spring } from "../_shared/spring.js";
 const { renderer, input, math, run, finish } = createEngine();
 const { ctx, canvas } = renderer;
 
-// this is my scratch surface dimensions
+// ==================== SCRATCH SURFACE CONFIG ====================
 var scratchWidth = 830;
 var scratchHeight = 490;
 
-//so here im creating another canvas to do my scratch effect
+// Scratch canvas (offscreen)
 var scratchCanvas = document.createElement("canvas");
 var scratchCtx = scratchCanvas.getContext("2d");
 
 scratchCanvas.width = scratchWidth;
 scratchCanvas.height = scratchHeight;
 
-//here i create the scratch surface with a solid gray color
+// Init scratch surface (full gray)
 function initScratchSurface() {
   scratchCtx.fillStyle = "#919191ff";
   scratchCtx.fillRect(0, 0, scratchCanvas.width, scratchCanvas.height);
 }
 
+// ==================== CHECK ZONE ====================
 const checkRectX = 600;
 const checkRectY = 100;
 const checkRectWidth = 200;
 const checkRectHeight = 300;
 
-// fade-out animation variables
+// ==================== FADE / STATE ====================
 var fadeOutStartTime = null;
-var fadeOutDuration = 1; // fade-out duration in seconds
+var fadeOutDuration = 1; // seconds
 var thresholdReached = false;
 
 // fade-out for number 2
-const ceroFadeDuration = 1000; // 1 second fade
+const ceroFadeDuration = 1000; // ms
 var ceroFadeStart = null;
 var ceroOpacity = 1;
 var scratchingComplete = false;
@@ -42,20 +43,20 @@ var wasPressed = false;
 var prevMouseX = 0;
 var prevMouseY = 0;
 
-// slide-in animation variables
+// slide-in animation
 var animationStartTime = Date.now() / 1000;
-var animationDuration = 1; // duration of slide-in in seconds
+var animationDuration = 1; // seconds
+let slideInElapsed = 0;
 
 // pixel check optimization
 var frameCounter = 0;
-var checkFrequency = 5; // only check pixels every 5 frames
+var checkFrequency = 5;
 var lastScratchProgress = 0;
 
-//and here im loading my image
+// ==================== IMAGE (TICKET) ====================
 var img = new Image();
 var imgLoaded = false;
 
-// ticket position & size
 var x = 0;
 var y = 0;
 var imageWidth = 0;
@@ -63,58 +64,93 @@ var imageHeight = 0;
 
 img.onload = function () {
   imgLoaded = true;
-  imageWidth = img.naturalWidth; //here i get the natural width and height of the image
+  imageWidth = img.naturalWidth;
   imageHeight = img.naturalHeight;
 
-  var scale = 9; //this is what i use to scale the image
+  var scale = 9;
   imageWidth *= scale;
   imageHeight *= scale;
 
-  x = (canvas.width - imageWidth) / 2; //and this is what i use to center the image
+  x = (canvas.width - imageWidth) / 2;
   y = (canvas.height - imageHeight) / 2;
   initScratchSurface();
 };
 
 img.src = "./assets-ticket/ticket.svg";
 
+// ==================== AUDIO ====================
+// Chemin à adapter à ton projet
+const SCRATCH_SOUND_SRC = "./assets-ticket/scratch-sound.mp3";
+
+const scratchSound = new Audio(SCRATCH_SOUND_SRC);
+scratchSound.volume = 0.8;
+scratchSound.loop = true;
+
+let isScratchSoundPlaying = false;
+
+function startScratchSound() {
+  if (isScratchSoundPlaying) return;
+  isScratchSoundPlaying = true;
+
+  try {
+    scratchSound.currentTime = 0;
+  } catch (e) {
+    // au cas où le son ne soit pas ready
+  }
+
+  const playPromise = scratchSound.play();
+  if (playPromise && playPromise.catch) {
+    playPromise.catch(() => {
+      // si le navigateur bloque le son, on remet le flag
+      isScratchSoundPlaying = false;
+    });
+  }
+}
+
+function stopScratchSound() {
+  if (!isScratchSoundPlaying) return;
+  scratchSound.pause();
+  isScratchSoundPlaying = false;
+}
+
+// ==================== MAIN LOOP ====================
 run(update);
 
-let sketchStarted = false;
-let slideInElapsed = 0;
-
 function update(dt) {
-  // number position
+  // Positions
   var numberX = canvas.width / 2;
   var numberY = canvas.height / 2 + 350;
   var scratchX = canvas.width / 2 - scratchWidth / 2;
   var scratchY = canvas.height / 2 - scratchHeight / 2 + 285;
 
-  //here i check if the mouse is pressed to create the scratch effect
-
-  //   scratchCtx.save();
-  //   scratchCtx.beginPath();
-  //   scratchCtx.rect(checkRectX, checkRectY, checkRectWidth, checkRectHeight);
-  //   scratchCtx.fillStyle = "red";
-  //   scratchCtx.fill();
-  //   scratchCtx.restore();
-
+  // ========== SCRATCH INPUT ==========
   if (input.isPressed()) {
-    // Initialize position on first press
-    if (prevMouseX === 0 && prevMouseY === 0) {
-      prevMouseX = input.getX();
-      prevMouseY = input.getY();
+    const mouseX = input.getX();
+    const mouseY = input.getY();
+
+    // première frame du clic
+    if (!wasPressed) {
+      // Si le grattage est déjà fini et qu'on reclique, on lance le fade du 2
+      if (scratchingComplete) {
+        ceroFadeStart = Date.now();
+      }
+      // démarrer le son de scratch
+      startScratchSound();
     }
 
-    // If scratching was complete and user clicks again, start the fade
-    if (scratchingComplete && !wasPressed) {
-      ceroFadeStart = Date.now();
-    }
     wasPressed = true;
 
+    // Init previous mouse pos si nécessaire
+    if (prevMouseX === 0 && prevMouseY === 0) {
+      prevMouseX = mouseX;
+      prevMouseY = mouseY;
+    }
+
+    // Dessin du scratch (effacer sur le canvas gris)
     scratchCtx.globalCompositeOperation = "destination-out";
     scratchCtx.beginPath();
     scratchCtx.moveTo(prevMouseX - scratchX, prevMouseY - scratchY);
-    scratchCtx.lineTo(input.getX() - scratchX, input.getY() - scratchY);
+    scratchCtx.lineTo(mouseX - scratchX, mouseY - scratchY);
     scratchCtx.strokeStyle = "rgba(0,0,0,1)";
     scratchCtx.lineWidth = 20;
     scratchCtx.lineCap = "round";
@@ -122,17 +158,19 @@ function update(dt) {
     scratchCtx.stroke();
     scratchCtx.globalCompositeOperation = "source-over";
 
-    // Update previous mouse position
-    prevMouseX = input.getX();
-    prevMouseY = input.getY();
+    prevMouseX = mouseX;
+    prevMouseY = mouseY;
   } else {
-    // Reset position when mouse is released
+    // si on arrête de cliquer → stop le son
+    if (wasPressed) {
+      stopScratchSound();
+    }
     prevMouseX = 0;
     prevMouseY = 0;
     wasPressed = false;
   }
 
-  // Only check pixels every 5 frames to improve performance
+  // ========== PROGRESS DU GRATTAGE ==========
   frameCounter++;
   let scratchProgress = lastScratchProgress;
 
@@ -157,14 +195,13 @@ function update(dt) {
     lastScratchProgress = scratchProgress;
   }
 
-  // Check if threshold is reached and start fade-out animation
+  // ========== SEUIL & FADE TICKET ==========
   if (scratchProgress > 0.5 && !thresholdReached) {
     thresholdReached = true;
-    fadeOutStartTime = Date.now() / 1000; // convert to seconds
+    fadeOutStartTime = Date.now() / 1000;
     scratchingComplete = true;
   }
 
-  // Reset threshold if scratch progress goes back below 0.5
   if (scratchProgress <= 0.5 && thresholdReached) {
     thresholdReached = false;
     fadeOutStartTime = null;
@@ -177,49 +214,45 @@ function update(dt) {
     fadeOutOpacity = Math.max(0, 1 - elapsedTime / fadeOutDuration);
   }
 
+  // ========== FADE DU CHIFFRE 2 ==========
   if (ceroFadeStart !== null) {
     const fadeElapsed = Date.now() - ceroFadeStart;
     const fadeProgress = Math.min(fadeElapsed / ceroFadeDuration, 1);
     ceroOpacity = 1 - fadeProgress;
 
     if (ceroOpacity <= 0) {
+      // on s’assure que le son est coupé avant de terminer
+      stopScratchSound();
       finish();
     }
   }
 
+  // ========== SLIDE-IN ANIMATION ==========
   const currentTime = Date.now() / 1000;
-
-  // const slideInElapsed = currentTime - animationStartTime;
-
   slideInElapsed = slideInElapsed + 0.02;
-  console.log(slideInElapsed);
 
   const slideInProgress = Math.min(1, slideInElapsed / animationDuration);
-
-  console.log(slideInProgress);
-
-  // Calculate vertical offset from top (slides down from -height to 0)
-
   const slideInOffset = (1 - slideInProgress) * canvas.height;
 
-  // draw the output
+  // ========== RENDER ==========
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   ctx.save();
   ctx.translate(0, slideInOffset);
 
+  // Ticket
   if (imgLoaded) {
     ctx.globalAlpha = fadeOutOpacity;
     ctx.drawImage(img, x, y, imageWidth, imageHeight);
     ctx.globalAlpha = 1;
   }
 
-  //this is my number 2
+  // Chiffre 2
   const centerX = canvas.width / 2;
-  const centerY = canvas.height / 2 + 150; // Adjusted to keep it more centered vertically when scaled
-  const originalX = canvas.width / 2 + 268; // original position of the number (x)
-  const originalY = canvas.height / 2 + 289; // original position of the number (y)
+  const centerY = canvas.height / 2 + 150;
+  const originalX = canvas.width / 2 + 268;
+  const originalY = canvas.height / 2 + 289;
 
   ctx.fillStyle = "#fff";
   ctx.font = "200px TWK, Arial, sans-serif";
@@ -227,10 +260,9 @@ function update(dt) {
   ctx.lineWidth = 3;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  // Smooth scale from 1 to 13.995 as fadeOutOpacity goes from 1 to 0 (reaches 2799px)
+
   const scale = 1 + (1 - fadeOutOpacity) * 12.995;
 
-  // Interpolate position from original to center as it scales
   const currentX = originalX + (centerX - originalX) * (1 - fadeOutOpacity);
   const currentY = originalY + (centerY - originalY) * (1 - fadeOutOpacity);
 
@@ -239,13 +271,14 @@ function update(dt) {
   ctx.scale(scale, scale);
   ctx.globalAlpha = ceroOpacity;
   ctx.fillText("2", 0, 0);
-  // Only show stroke when scale is small (less than ~5)
+
   const strokeOpacity = Math.max(0, 1 - (scale - 1) / 12.995);
   ctx.globalAlpha = ceroOpacity * strokeOpacity;
   ctx.strokeText("2", 0, 0);
   ctx.globalAlpha = 1;
   ctx.restore();
 
+  // Scratch layer
   ctx.globalAlpha = fadeOutOpacity;
   ctx.drawImage(scratchCanvas, scratchX, scratchY);
   ctx.globalAlpha = 1;

@@ -1,6 +1,11 @@
 import { createEngine } from "../_shared/engine.js";
-const { renderer, input, math, run, finish } = createEngine();
+
+// ⚠️ ici on récupère aussi `audio`
+const { renderer, input, math, run, finish, audio } = createEngine();
 const { ctx, canvas } = renderer;
+
+// ---------- SONS ----------
+const brickPop = await audio.load("assets-typo/brick-sound.wav"); // adapte le chemin
 
 const brickW = 300,
   brickH = 78;
@@ -12,6 +17,9 @@ let numberOpacity = 1;
 const viewportWidth = canvas.width;
 const viewportHeight = canvas.height;
 const maxVisibleHeight = viewportHeight;
+
+// ✅ nouveau : l’intro est finie quand toutes les briques ont été affichées
+let introFinished = false;
 
 // ---------------- CREATE BRICKS ----------------
 for (let r = 0; r < Math.ceil(viewportHeight / brickH); r++) {
@@ -41,6 +49,11 @@ setInterval(() => {
   if (buildIndex < bricks.length) {
     bricks[buildIndex].visible = true;
     buildIndex++;
+
+    // ✅ quand on a tout affiché → fin de l’intro
+    if (buildIndex >= bricks.length) {
+      introFinished = true;
+    }
   }
 }, buildSpeed);
 
@@ -63,6 +76,7 @@ function isSupported(brick) {
 }
 
 function physics() {
+  // pas de physique pendant l’intro
   if (buildIndex < bricks.length) return;
 
   for (let brick of bricks) {
@@ -97,15 +111,15 @@ function draw() {
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, w, h);
 
-  // fade number after bricks disappear
   const visibleBricks = bricks.filter((b) => b.visible);
 
+  // quand toutes les briques ont disparu → on commence à fade le 3
   if (buildIndex >= bricks.length && visibleBricks.length === 0) {
     numberOpacity = Math.max(0, numberOpacity - 0.02);
   }
 
-  // draw number
-  if (numberOpacity > 0) {
+  // ✅ on ne dessine le 3 que quand l’intro est terminée
+  if (introFinished && numberOpacity > 0) {
     ctx.globalAlpha = numberOpacity;
     ctx.fillStyle = "white";
     ctx.font = "400 2799px 'TWK'";
@@ -135,7 +149,7 @@ function update(dt) {
 
   // when the number has faded, end the scene
   if (buildIndex >= bricks.length && numberOpacity <= 0) {
-    finish(); // works now
+    finish();
   }
 }
 
@@ -150,6 +164,7 @@ run(update);
 
 // ---------- MOUSE INTERACTION ----------
 canvas.addEventListener("mousemove", (e) => {
+  // pas d’interaction tant que l’intro n’est pas finie
   if (buildIndex < bricks.length) return;
 
   const rect = canvas.getBoundingClientRect();
@@ -168,6 +183,10 @@ canvas.addEventListener("mousemove", (e) => {
       y <= brick.y + brick.h
     ) {
       brick.visible = false;
+
+      // 🔊 jouer le son quand une brique disparaît
+      brickPop.play({ rate: 1, volume: 1 });
+
       break;
     }
   }

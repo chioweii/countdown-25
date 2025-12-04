@@ -28,6 +28,8 @@ const eyeY = canvas.height / 2 - 300;
 const eye1X = (canvas.width - totalEyeWidth) / 2 + CONFIG.eyeRadius;
 const eye2X = eye1X + CONFIG.eyeRadius * 2 + CONFIG.eyeGap;
 
+// ==================== ASSETS ====================
+
 // Teeth images
 const teethImages = {
   intact: "assets-0/TEETH.svg",
@@ -37,15 +39,26 @@ const teethImages = {
   broken08: "assets-0/TEETH-BROKEN-08.svg",
 };
 
-let state = {
-  teethStateTop: 1, // 0..4, 5 means gone
-  teethStateBottom: 1,
-  colorTransitionStart: null,
-  eyesFadeStart: null,
-  ceroFadeStart: null,
-  slideInStartTime: Date.now(),
-  blinkStartTime: Date.now(),
-};
+// Audio (adapt this path to your project)
+const TEETH_SOUND_SRC = "assets-0/punch-sound.mp3";
+
+// Single Audio instance for teeth sound
+const teethSound = new Audio(TEETH_SOUND_SRC);
+teethSound.volume = 0.8; // adjust if needed
+
+function playTeethSound() {
+  try {
+    teethSound.currentTime = 0;
+  } catch (e) {
+    // ignore if not ready yet
+  }
+  const playPromise = teethSound.play();
+  if (playPromise && playPromise.catch) {
+    playPromise.catch(() => {
+      // ignore autoplay errors
+    });
+  }
+}
 
 // Preload images and expose ready flag
 const images = {
@@ -80,6 +93,17 @@ function loadTeethImages(map) {
 
 loadTeethImages(teethImages);
 
+// ==================== STATE ====================
+let state = {
+  teethStateTop: 1, // 0..4, 5 means gone
+  teethStateBottom: 1,
+  colorTransitionStart: null,
+  eyesFadeStart: null,
+  ceroFadeStart: null,
+  slideInStartTime: null,
+  blinkStartTime: Date.now(),
+};
+
 // -------------------- Utilities --------------------
 function now() {
   return Date.now();
@@ -95,11 +119,11 @@ function isPointInRect(px, py, x, y, w, h) {
 
 // Interpolate hex colors (#rrggbbaa or #rrggbb)
 function interpolateColorHex(c1, c2, t) {
-  // ensure format without '#'
   const s1 = c1.replace(/^#/, "");
   const s2 = c2.replace(/^#/, "");
 
   const parseChannel = (s, i) => parseInt(s.slice(i, i + 2), 16);
+
   const r = Math.round(
     parseChannel(s1, 0) + (parseChannel(s2, 0) - parseChannel(s1, 0)) * t
   );
@@ -110,7 +134,6 @@ function interpolateColorHex(c1, c2, t) {
     parseChannel(s1, 4) + (parseChannel(s2, 4) - parseChannel(s1, 4)) * t
   );
 
-  // alpha handling: optional
   const a1 = s1.length === 8 ? parseInt(s1.slice(6, 8), 16) / 255 : 1;
   const a2 = s2.length === 8 ? parseInt(s2.slice(6, 8), 16) / 255 : 1;
   const a = a1 + (a2 - a1) * t;
@@ -120,6 +143,7 @@ function interpolateColorHex(c1, c2, t) {
 
 // Slide-in offset (ease-out cubic)
 function getSlideInOffset() {
+  if (state.slideInStartTime === null) state.slideInStartTime = now();
   const elapsed = now() - state.slideInStartTime;
   const duration = CONFIG.slideInDuration;
   const progress = clamp(elapsed / duration, 0, 1);
@@ -176,6 +200,7 @@ function isClickInTeethBottom(mx, my) {
 // -------------------- Input handling --------------------
 function handleInput() {
   if (!input.isDown()) return;
+
   const mx = input.getX();
   const my = input.getY();
 
@@ -188,11 +213,20 @@ function handleInput() {
     state.ceroFadeStart = now();
   }
 
+  let brokeSomething = false;
+
   if (isClickInTeethTop(mx, my) && state.teethStateTop < 5) {
     state.teethStateTop += 1;
+    brokeSomething = true;
   }
+
   if (isClickInTeethBottom(mx, my) && state.teethStateBottom < 5) {
     state.teethStateBottom += 1;
+    brokeSomething = true;
+  }
+
+  if (brokeSomething) {
+    playTeethSound();
   }
 }
 
@@ -202,7 +236,6 @@ function drawEye(centerX, centerY) {
   const cx = centerX + slideOffset;
   const cy = centerY;
 
-  // compute angle towards mouse
   const mx = input.getX();
   const my = input.getY();
   const angle = Math.atan2(my - cy, mx - cx);
@@ -213,7 +246,6 @@ function drawEye(centerX, centerY) {
   const blink = getBlinkAmount();
   const eyelidHeight = CONFIG.eyeRadius * 2 * blink;
 
-  // eye opacity during color transition
   let eyeOpacity = 1;
   if (state.colorTransitionStart !== null) {
     const elapsed = now() - state.colorTransitionStart;
@@ -236,7 +268,7 @@ function drawEye(centerX, centerY) {
   ctx.arc(cx, cy, CONFIG.eyeRadius, 0, Math.PI * 2);
   ctx.stroke();
 
-  // pupil (don't draw if mostly closed)
+  // pupil
   if (blink < 0.8) {
     ctx.fillStyle = "#446eb1";
     ctx.beginPath();
@@ -275,12 +307,13 @@ function drawTextAndTeeth() {
   const slideOffset = getSlideInOffset();
 
   const bothTeethGone = state.teethStateTop >= 5 && state.teethStateBottom >= 5;
-  if (bothTeethGone && state.colorTransitionStart === null)
+  if (bothTeethGone && state.colorTransitionStart === null) {
     state.colorTransitionStart = now();
+  }
 
-  // color transition for the big zero
   let textColor = "#fdabd4ff";
   let ceroOpacity = 1;
+
   if (bothTeethGone && state.colorTransitionStart !== null) {
     const elapsed = now() - state.colorTransitionStart;
     const progress = clamp(elapsed / CONFIG.colorTransitionDuration, 0, 1);
@@ -322,6 +355,7 @@ function drawTextAndTeeth() {
     if (img && img.complete) {
       const x = teethXBottom() + slideOffset;
       const y = teethYBottom();
+
       ctx.save();
       ctx.translate(x + CONFIG.teethWidth / 2, y + CONFIG.teethHeight / 2);
       ctx.scale(1, -1);
