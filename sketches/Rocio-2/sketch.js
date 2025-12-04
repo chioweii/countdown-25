@@ -15,16 +15,9 @@ var scratchCtx = scratchCanvas.getContext("2d");
 scratchCanvas.width = scratchWidth;
 scratchCanvas.height = scratchHeight;
 
-//here i create the scratch surface with a gradient
+//here i create the scratch surface with a solid gray color
 function initScratchSurface() {
-  const gradient = scratchCtx.createLinearGradient(0, 0, 0, 0 + scratchHeight);
-  gradient.addColorStop(0, "#aeaeaeff");
-  gradient.addColorStop(0.25, "#ffffff");
-  gradient.addColorStop(0.5, "#d2d2d2ff");
-  gradient.addColorStop(0.75, "#ffffff");
-  gradient.addColorStop(1, "#d2d2d2ff");
-
-  scratchCtx.fillStyle = gradient;
+  scratchCtx.fillStyle = "#919191ff";
   scratchCtx.fillRect(0, 0, scratchCanvas.width, scratchCanvas.height);
 }
 
@@ -37,6 +30,13 @@ const checkRectHeight = 300;
 var fadeOutStartTime = null;
 var fadeOutDuration = 1; // fade-out duration in seconds
 var thresholdReached = false;
+
+// fade-out for number 2
+const ceroFadeDuration = 1000; // 1 second fade
+var ceroFadeStart = null;
+var ceroOpacity = 1;
+var scratchingComplete = false;
+var wasPressed = false;
 
 // track previous mouse position for smooth lines
 var prevMouseX = 0;
@@ -79,6 +79,9 @@ img.src = "./assets-ticket/ticket.svg";
 
 run(update);
 
+let sketchStarted = false;
+let slideInElapsed = 0;
+
 function update(dt) {
   // number position
   var numberX = canvas.width / 2;
@@ -102,6 +105,12 @@ function update(dt) {
       prevMouseY = input.getY();
     }
 
+    // If scratching was complete and user clicks again, start the fade
+    if (scratchingComplete && !wasPressed) {
+      ceroFadeStart = Date.now();
+    }
+    wasPressed = true;
+
     scratchCtx.globalCompositeOperation = "destination-out";
     scratchCtx.beginPath();
     scratchCtx.moveTo(prevMouseX - scratchX, prevMouseY - scratchY);
@@ -120,6 +129,7 @@ function update(dt) {
     // Reset position when mouse is released
     prevMouseX = 0;
     prevMouseY = 0;
+    wasPressed = false;
   }
 
   // Only check pixels every 5 frames to improve performance
@@ -151,27 +161,45 @@ function update(dt) {
   if (scratchProgress > 0.5 && !thresholdReached) {
     thresholdReached = true;
     fadeOutStartTime = Date.now() / 1000; // convert to seconds
+    scratchingComplete = true;
   }
 
   // Reset threshold if scratch progress goes back below 0.5
   if (scratchProgress <= 0.5 && thresholdReached) {
     thresholdReached = false;
     fadeOutStartTime = null;
+    scratchingComplete = false;
   }
 
-  // Calculate fade-out opacity based on elapsed time since threshold
   let fadeOutOpacity = 1;
   if (thresholdReached && fadeOutStartTime !== null) {
     const elapsedTime = Date.now() / 1000 - fadeOutStartTime;
     fadeOutOpacity = Math.max(0, 1 - elapsedTime / fadeOutDuration);
   }
 
-  // Calculate slide-in animation progress (0 to 1)
+  if (ceroFadeStart !== null) {
+    const fadeElapsed = Date.now() - ceroFadeStart;
+    const fadeProgress = Math.min(fadeElapsed / ceroFadeDuration, 1);
+    ceroOpacity = 1 - fadeProgress;
+
+    if (ceroOpacity <= 0) {
+      finish();
+    }
+  }
+
   const currentTime = Date.now() / 1000;
-  const slideInElapsed = currentTime - animationStartTime;
+
+  // const slideInElapsed = currentTime - animationStartTime;
+
+  slideInElapsed = slideInElapsed + 0.02;
+  console.log(slideInElapsed);
+
   const slideInProgress = Math.min(1, slideInElapsed / animationDuration);
 
+  console.log(slideInProgress);
+
   // Calculate vertical offset from top (slides down from -height to 0)
+
   const slideInOffset = (1 - slideInProgress) * canvas.height;
 
   // draw the output
@@ -189,7 +217,7 @@ function update(dt) {
 
   //this is my number 2
   const centerX = canvas.width / 2;
-  const centerY = canvas.height / 2;
+  const centerY = canvas.height / 2 + 150; // Adjusted to keep it more centered vertically when scaled
   const originalX = canvas.width / 2 + 268; // original position of the number (x)
   const originalY = canvas.height / 2 + 289; // original position of the number (y)
 
@@ -199,8 +227,8 @@ function update(dt) {
   ctx.lineWidth = 3;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  // Smooth scale from 1 to 9 as fadeOutOpacity goes from 1 to 0
-  const scale = 1 + (1 - fadeOutOpacity) * 8;
+  // Smooth scale from 1 to 13.995 as fadeOutOpacity goes from 1 to 0 (reaches 2799px)
+  const scale = 1 + (1 - fadeOutOpacity) * 12.995;
 
   // Interpolate position from original to center as it scales
   const currentX = originalX + (centerX - originalX) * (1 - fadeOutOpacity);
@@ -209,8 +237,13 @@ function update(dt) {
   ctx.save();
   ctx.translate(currentX, currentY);
   ctx.scale(scale, scale);
+  ctx.globalAlpha = ceroOpacity;
   ctx.fillText("2", 0, 0);
+  // Only show stroke when scale is small (less than ~5)
+  const strokeOpacity = Math.max(0, 1 - (scale - 1) / 12.995);
+  ctx.globalAlpha = ceroOpacity * strokeOpacity;
   ctx.strokeText("2", 0, 0);
+  ctx.globalAlpha = 1;
   ctx.restore();
 
   ctx.globalAlpha = fadeOutOpacity;

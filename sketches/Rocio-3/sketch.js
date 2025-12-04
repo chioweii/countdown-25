@@ -1,29 +1,19 @@
 import { createEngine } from "../_shared/engine.js";
-const { finish } = createEngine();
-
-const canvas = document.getElementById("wall");
-const ctx = canvas.getContext("2d");
-
-const dpr = window.devicePixelRatio || 1;
-canvas.width = window.innerWidth * dpr;
-canvas.height = window.innerHeight * dpr;
-canvas.style.width = window.innerWidth + "px";
-canvas.style.height = window.innerHeight + "px";
-ctx.scale(dpr, dpr);
+const { renderer, input, math, run, finish } = createEngine();
+const { ctx, canvas } = renderer;
 
 const brickW = 300,
   brickH = 78;
 const bricks = [];
 let buildIndex = 0;
 const buildSpeed = 5;
-let brickCounter = 0;
-let numberOpacity = 1; // Track opacity of the "3"
+let numberOpacity = 1;
 
-// Only generate bricks for visible viewport
-const viewportWidth = window.innerWidth;
-const viewportHeight = window.innerHeight;
+const viewportWidth = canvas.width;
+const viewportHeight = canvas.height;
 const maxVisibleHeight = viewportHeight;
 
+// ---------------- CREATE BRICKS ----------------
 for (let r = 0; r < Math.ceil(viewportHeight / brickH); r++) {
   const offset = r % 2 === 0 ? 0 : -brickW / 2;
   for (
@@ -32,7 +22,7 @@ for (let r = 0; r < Math.ceil(viewportHeight / brickH); r++) {
     c++
   ) {
     const x = c * brickW + offset;
-    // Only add brick if it's within the visible viewport
+
     if (x + brickW > 0 && x < viewportWidth) {
       bricks.push({
         x: x,
@@ -41,12 +31,12 @@ for (let r = 0; r < Math.ceil(viewportHeight / brickH); r++) {
         h: brickH,
         visible: false,
         vy: 0,
-        // index: brickCounter++,
       });
     }
   }
 }
 
+// reveal bricks one by one
 setInterval(() => {
   if (buildIndex < bricks.length) {
     bricks[buildIndex].visible = true;
@@ -54,8 +44,10 @@ setInterval(() => {
   }
 }, buildSpeed);
 
+// ---------- PHYSICS ----------
 function isSupported(brick) {
   if (brick.y + brick.h >= maxVisibleHeight) return true;
+
   for (let b of bricks) {
     if (
       b.visible &&
@@ -70,12 +62,15 @@ function isSupported(brick) {
   return false;
 }
 
-function update() {
+function physics() {
   if (buildIndex < bricks.length) return;
-  bricks.forEach((brick) => {
-    if (!brick.visible) return;
+
+  for (let brick of bricks) {
+    if (!brick.visible) continue;
+
     if (!isSupported(brick)) brick.vy += 0.5;
     else brick.vy = 0;
+
     brick.y += brick.vy;
 
     for (let b of bricks) {
@@ -91,37 +86,36 @@ function update() {
         brick.vy = 0;
       }
     }
-  });
+  }
 }
 
+// ---------- DRAW ----------
 function draw() {
-  const w = window.innerWidth,
-    h = window.innerHeight;
-  ctx.fillStyle = "#000000ff";
+  const w = canvas.width;
+  const h = canvas.height;
+
+  ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, w, h);
 
-  // Check if all bricks are gone
+  // fade number after bricks disappear
   const visibleBricks = bricks.filter((b) => b.visible);
+
   if (buildIndex >= bricks.length && visibleBricks.length === 0) {
-    // All bricks are gone, fade out the number
-    if (numberOpacity > 0) {
-      numberOpacity = Math.max(0, numberOpacity - 0.02);
-    }
+    numberOpacity = Math.max(0, numberOpacity - 0.02);
   }
 
-  if (buildIndex >= bricks.length && numberOpacity > 0) {
+  // draw number
+  if (numberOpacity > 0) {
     ctx.globalAlpha = numberOpacity;
     ctx.fillStyle = "white";
-    ctx.font = "1400px TWK, Arial, sans-serif";
+    ctx.font = "400 2799px 'TWK'";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    // ctx.strokeStyle = "white";
-    ctx.lineWidth = 3;
-    ctx.strokeText("3", w / 2, h / 2 + 80);
-    ctx.fillText("3", w / 2, h / 2 + 80);
+    ctx.fillText("3", w / 2, h / 2 + 150);
     ctx.globalAlpha = 1;
   }
 
+  // draw bricks
   bricks
     .filter((b) => b.visible)
     .sort((a, b) => a.y - b.y)
@@ -131,29 +125,40 @@ function draw() {
       ctx.strokeStyle = "black";
       ctx.lineWidth = 3;
       ctx.strokeRect(brick.x, brick.y, brick.w, brick.h);
-
-      // // Draw brick index number
-      // ctx.fillStyle = "white";
-      // ctx.font = "bold 32px Arial, sans-serif";
-      // ctx.textAlign = "center";
-      // ctx.textBaseline = "middle";
-      // ctx.fillText(brick.index, brick.x + brick.w / 2, brick.y + brick.h / 2);
     });
 }
 
-function animate() {
-  update();
+// ---------- ENGINE UPDATE ----------
+function update(dt) {
+  physics();
   draw();
-  requestAnimationFrame(animate);
+
+  // when the number has faded, end the scene
+  if (buildIndex >= bricks.length && numberOpacity <= 0) {
+    finish(); // works now
+  }
 }
 
-animate();
+// press f to finish
+window.addEventListener("keypress", (e) => {
+  if (e.key === "f") {
+    finish();
+  }
+});
 
+run(update);
+
+// ---------- MOUSE INTERACTION ----------
 canvas.addEventListener("mousemove", (e) => {
   if (buildIndex < bricks.length) return;
+
   const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left,
-    y = e.clientY - rect.top;
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+
+  const x = (e.clientX - rect.left) * scaleX;
+  const y = (e.clientY - rect.top) * scaleY;
+
   for (let brick of bricks) {
     if (
       brick.visible &&

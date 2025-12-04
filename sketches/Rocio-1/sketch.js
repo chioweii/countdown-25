@@ -22,6 +22,13 @@ let dragOffsetY = 0;
 let centerX, centerY;
 let zipperRange, openDistance;
 
+// press f to finish
+window.addEventListener("keypress", (e) => {
+  if (e.key === "f") {
+    finish();
+  }
+});
+
 function update() {
   centerX = canvas.width / 2;
   centerY = canvas.height / 2;
@@ -48,6 +55,11 @@ function update() {
   zipperPosY = math.clamp(zipperPosY, topY, bottomY);
   zipperRange = bottomY - topY;
   openDistance = zipperPosY - topY;
+
+  // Check if zipper is fully down
+  if (zipperPosY === bottomY) {
+    finish();
+  }
 
   // bg
   ctx.beginPath();
