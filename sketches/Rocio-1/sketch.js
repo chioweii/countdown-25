@@ -332,12 +332,14 @@ function drawScene() {
   }
   ctx.restore();
 
-  // Overlay noir progressif pendant le zoom
+  // Overlay noir progressif durante el zoom
   ctx.save();
   {
     let alpha = 1;
     if (currentState === "numberScale") {
       alpha = math.mapClamped(currentStateTime, 0, NUMBER_ZOOM_DURATION, 1, 0);
+    } else if (currentState === "endFadeout") {
+      alpha = 0; // No overlay during fade-out
     }
     ctx.beginPath();
     ctx.rect(0, 0, canvas.width, canvas.height);
@@ -356,7 +358,7 @@ function drawScene() {
 
     // interpolation de la position vers le centre
     const animatedX = math.lerp(oneCenterX, centerX, t);
-    const animatedY = math.lerp(oneCenterY, centerY, t);
+    const animatedY = math.lerp(oneCenterY, centerY + 150, t);
 
     ctx.save();
     ctx.font = fontSize + "px TWK";
@@ -379,7 +381,7 @@ function drawScene() {
     ctx.fillStyle = "white";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("1", centerX, centerY);
+    ctx.fillText("1", centerX, centerY + 150);
     ctx.globalAlpha = 1;
     ctx.restore();
   }
