@@ -7,8 +7,8 @@ const { ctx, canvas } = renderer;
 // ---------- SONS ----------
 const brickPop = await audio.load("assets-typo/brick-sound.wav"); // adapte le chemin
 
-const brickW = 600,
-  brickH = 208;
+const brickW = 300 * window.devicePixelRatio,
+  brickH = 104 * window.devicePixelRatio;
 const bricks = [];
 let buildIndex = 0;
 const buildSpeed = 50;

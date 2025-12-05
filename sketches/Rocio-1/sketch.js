@@ -4,72 +4,97 @@ import { Spring } from "../_shared/spring.js";
 const { renderer, input, math, run, finish } = createEngine();
 const { ctx, canvas } = renderer;
 
-let svg;
-let topSvg;
-let openSvg; // added: you were loading this later
-let zipperSound; // sound for zipper sliding
+// ---------------------------------------------------------
+// 1. CONFIG GLOBALE
+// ---------------------------------------------------------
 
-//load svg images
+// Layout
+const topY = 300;
+const bottomY = 1200;
+const zipperHandleWidth = 80;
+const zipperHandleHeight = 220;
+
+const topImageWidth = 250;
+const topImageHeight = 1100;
+
+// Transitions
+const SLIDE_IN_DURATION = 1.5; // s
+const NUMBER_ZOOM_DURATION = 1.5; // s
+const ONE_FADE_DURATION = 1000; // ms
+
+// Taille du "1"
+const INITIAL_FONT_SIZE = 990;
+const FINAL_FONT_SIZE = 2799;
+
+// Couleurs
+const JEAN_BLUE = "#446eb1";
+
+// ---------------------------------------------------------
+// 2. ÉTAT GLOBAL
+// ---------------------------------------------------------
+
+// Canvas centre
+let centerX = 0;
+let centerY = 0;
+
+// Position commune de tous les "1"
+let oneCenterX = 0;
+let oneCenterY = 0;
+
+// Zipper & top image (jean + poches)
+let zipperPosY = topY;
+let zipperRange = 0;
+let openDistance = 0;
+
+let isDragging = false;
+let dragOffsetY = 0;
+
+let isTopSvgDragging = false;
+let topSvgOffsetX = 0;
+let topSvgDragOffsetX = 0;
+
+// Transition zoom du "1" + fade du bleu
+let currentState = "intro";
+let currentStateTime = 0;
+
+// Assets
+let svg; // slider
+let topSvg; // jean + poches
+let openSvg; // non utilisé ici mais chargé
+let zipperSound;
+
+// ---------------------------------------------------------
+// 3. INITIALISATION
+// ---------------------------------------------------------
+
 async function preload() {
   svg = await loadSvg("./assets-02/slider.svg");
   topSvg = await loadSvg("./assets-02/zipper-fly.svg");
-  run(update);
+  run(update); // on lance la boucle dès que les assets principaux sont prêts
   openSvg = await loadSvg("./assets-02/zipper-fly-open-.svg");
 
-  // load zipper sound
-  // make sure "./assets-02/zipper-sound.mp3" exists or change this path
   zipperSound = new Audio("./assets-02/zipper-sound.mp3");
-  zipperSound.loop = true; // continuous while dragging
+  zipperSound.loop = true;
 }
 
 preload();
 
-let isDragging = false;
-let isTopSvgDragging = false;
-let topSvgOffsetX = 0;
-let topSvgDragOffsetX = 0;
-const topY = 300;
-const bottomY = 1200;
-let zipperPosY = topY;
-let zipperHandleWidth = 80;
-let zipperHandleHeight = 220;
-let dragOffsetY = 0;
-let centerX, centerY;
-let zipperRange, openDistance;
-const topImageWidth = 250;
-const topImageHeight = 1100;
+// raccourci clavier pour finir
+window.addEventListener("keypress", (e) => {
+  if (e.key === "f") {
+    finish();
+  }
+});
 
-// ============ TRANSITIONS ============
-let transitionTime = 0;
-const transitionDuration = 2.5; // duration in seconds
-let transitionActive = true;
+// ---------------------------------------------------------
+// 4. UTILS
+// ---------------------------------------------------------
 
-// ============ FINAL STATE FLAG ============
-let showOnlyNumberOne = false; // when true: only black bg + big "1" are drawn
-
-// ============ NUMBER ZOOM / FADE TRANSITION ============
-let numberTransitionActive = false;
-let numberTransitionTime = 0;
-const numberTransitionDuration = 1.5; // seconds
-const initialFontSize = 990;
-const finalFontSize = 2799;
-let pendingNumberTransition = false; // Flag to start transition on next frame
-
-// ============ NUMBER FADE OUT ============
-const oneFadeDuration = 1000; // ms
-let oneFadeStart = null;
-let oneOpacity = 1;
-let numberFadeActive = false;
-
-// ============ SOUND HELPERS ============
 function playZipperSound() {
   if (!zipperSound) return;
   if (zipperSound.paused) {
-    // reset to start and play
     zipperSound.currentTime = 0;
-    zipperSound.play().catch(() => {
-      // ignore play() errors (browser autoplay policies etc.)
-    });
+    zipperSound.play().catch(() => {});
   }
 }
 
@@ -78,207 +103,74 @@ function stopZipperSound() {
   zipperSound.pause();
   zipperSound.currentTime = 0;
 }
-// =======================================
 
-// TRANSITION 1: Slide in from left to right
-
-function transitionSlideInFromLeft() {
-  if (transitionTime < transitionDuration) {
-    transitionTime += 0.016; // approximate frame time (~60fps)
-    const progress = transitionTime / transitionDuration;
-    const slideAmount = math.lerp(-canvas.width - 400, 0, progress); // Start even further left
-    return slideAmount;
-  } else {
-    transitionActive = false;
-    return 0;
-  }
+async function loadSvg(path) {
+  return new Promise((resolve) => {
+    const svg = document.createElement("img");
+    svg.src = path;
+    svg.addEventListener("load", () => {
+      resolve(svg);
+      console.log("loaded " + path);
+    });
+  });
 }
 
-// ============ END TRANSITIONS ============
-window.addEventListener("keypress", (e) => {
-  if (e.key === "f") {
-    finish();
-  }
-});
+// ---------------------------------------------------------
+// 6. INTERACTION / INPUT
+// ---------------------------------------------------------
 
-function update() {
-  centerX = canvas.width / 2;
-  centerY = canvas.height / 2;
-
-  // Check if we should start the pending transition
-  if (pendingNumberTransition && !input.isPressed()) {
-    numberTransitionActive = true;
-    numberTransitionTime = 0;
-    pendingNumberTransition = false;
-  }
-
-  // ============ APPLY TRANSITIONS ============
-  let slideOffsetX = 0;
-  if (transitionActive) {
-    slideOffsetX = transitionSlideInFromLeft();
-  }
-  // ============ END TRANSITION APPLICATION ============
-
-  // ============ FINAL STATE: ONLY BLACK BG + BIG "1" ============
-  if (showOnlyNumberOne) {
-    // make sure sound is stopped in final state
-    stopZipperSound();
-
-    ctx.beginPath();
-    ctx.rect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "black";
-    ctx.fill();
-
-    // Handle fade-out if active
-    if (numberFadeActive) {
-      const currentTime = Date.now();
-      const elapsed = currentTime - oneFadeStart;
-      oneOpacity = Math.max(0, 1 - elapsed / oneFadeDuration);
-
-      if (oneOpacity <= 0) {
-        numberFadeActive = false;
-        finish(); // End the sketch
-      }
-    }
-
-    // Draw the "1" at final size with fade opacity
-    ctx.globalAlpha = oneOpacity;
-    ctx.font = finalFontSize + "px TWK";
-    ctx.fillStyle = "white";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("1", canvas.width / 2, canvas.height / 2 + 150);
-    ctx.globalAlpha = 1; // Reset alpha
-
-    // Start fade-out if clicked and not already fading
-    if (input.isPressed() && !numberFadeActive) {
-      numberFadeActive = true;
-      oneFadeStart = Date.now();
-    }
-
-    return; // skip all other drawing / input logic
-  }
-  // ============ END FINAL STATE BLOCK ============
-
-  // ============ NUMBER ZOOM / BLUE FADE TRANSITION ============
-  if (numberTransitionActive) {
-    numberTransitionTime += 0.016; // approx frame time
-    let t = numberTransitionTime / numberTransitionDuration;
-    t = math.clamp(t, 0, 1);
-
-    const fadeAlpha = 1 - t; // 1 -> 0
-    const fontSize = math.lerp(initialFontSize, finalFontSize, t);
-
-    // make sure sound is stopped during this transition
-    stopZipperSound();
-
-    // Black background
-    ctx.beginPath();
-    ctx.rect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "black";
-    ctx.fill();
-
-    // Fade out the whole blue scene / zipper / etc.
-    drawScene(slideOffsetX, fadeAlpha);
-
-    // Draw growing "1" on top (full alpha, not clipped)
-    ctx.font = fontSize + "px TWK";
-    ctx.fillStyle = "white";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("1", canvas.width / 2, canvas.height / 2 + 150); //one centered vertically
-
-    // When transition is done, go to final static state
-    if (t >= 1) {
-      numberTransitionActive = false;
-      showOnlyNumberOne = true;
-    }
-
-    return; // don't process input or normal drawing while animating
-  }
-  // ============ END NUMBER ZOOM / BLUE FADE TRANSITION ============
-
-  const isOver =
-    input.getX() >= centerX - zipperHandleWidth / 2 &&
-    input.getX() <= centerX + zipperHandleWidth / 2 &&
-    input.getY() >= zipperPosY - zipperHandleHeight / 2 &&
-    input.getY() <= zipperPosY + zipperHandleHeight / 2;
-
-  // Check if clicking on topSvg
-  const isOverTopSvg =
-    input.getX() >= centerX + topSvgOffsetX - topImageWidth / 2 &&
-    input.getX() <= centerX + topSvgOffsetX + topImageWidth / 2 &&
-    input.getY() >= topY - topImageHeight / 2 + 537 &&
-    input.getY() <= topY - topImageHeight / 2 + 537 + topImageHeight;
-
-  // ============ HITBOX FOR NUMBER "1" ============
+function computeNumberOneHitbox() {
   ctx.save();
-  ctx.font = initialFontSize + "px TWK";
+  ctx.font = INITIAL_FONT_SIZE + "px TWK";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
-  const numberText = "1";
-  const metrics = ctx.measureText(numberText);
+  const metrics = ctx.measureText("1");
   const oneWidth = metrics.width;
-  const oneHeight = initialFontSize; // approximate height using font size
-
-  const oneCenterX = centerX - 20; // same offset as when drawing the "1"
-  const oneCenterY = centerY - 210;
+  const oneHeight = INITIAL_FONT_SIZE; // approx
 
   const oneX = oneCenterX - oneWidth / 2;
   const oneY = oneCenterY - oneHeight / 2;
 
   ctx.restore();
 
-  const isOverNumberOne =
+  const isOver =
     input.getX() >= oneX &&
     input.getX() <= oneX + oneWidth &&
     input.getY() >= oneY &&
     input.getY() <= oneY + oneHeight;
-  // ============ END HITBOX FOR "1" ============
 
-  if (input.isPressed()) {
-    // If zipper is fully down and user clicks on "1", start smooth transitions
-    if (
-      zipperPosY === bottomY &&
-      isOverNumberOne &&
-      !isDragging &&
-      !isTopSvgDragging &&
-      !numberTransitionActive &&
-      !showOnlyNumberOne &&
-      !pendingNumberTransition
-    ) {
-      pendingNumberTransition = true;
-      stopZipperSound(); // just in case
-    }
+  return isOver;
+}
 
-    if (isOverTopSvg && !isDragging && !isTopSvgDragging) {
-      isTopSvgDragging = true;
-      topSvgDragOffsetX = input.getX() - (centerX + topSvgOffsetX);
-    }
-
-    if (isOver && !isDragging && !isTopSvgDragging) {
-      isDragging = true;
-      dragOffsetY = input.getY() - zipperPosY;
-
-      // start zipper sound when slider starts moving
-      playZipperSound();
-    }
-  } else {
-    // mouse / touch released -> stop dragging and sound
-    if (isDragging) {
-      stopZipperSound();
-    }
-
+function handlePressLogic(isOverSliderHandle, isOverTopSvg, isOverNumberOne) {
+  if (!input.isPressed()) {
+    // fin du drag
+    if (isDragging) stopZipperSound();
     isDragging = false;
     isTopSvgDragging = false;
+    return;
   }
 
+  // drag du jean (topSvg)
+  if (isOverTopSvg && !isDragging && !isTopSvgDragging) {
+    isTopSvgDragging = true;
+    topSvgDragOffsetX = input.getX() - (centerX + topSvgOffsetX);
+  }
+
+  // drag du slider
+  if (isOverSliderHandle && !isDragging && !isTopSvgDragging) {
+    isDragging = true;
+    dragOffsetY = input.getY() - zipperPosY;
+    playZipperSound();
+  }
+}
+
+function updateDragging() {
   if (isDragging) {
     zipperPosY = input.getY() - dragOffsetY;
   }
 
-  // Stop dragging if mouse is released creates a ratio
   if (isTopSvgDragging) {
     topSvgOffsetX = input.getX() - topSvgDragOffsetX - centerX;
     topSvgOffsetX = math.clamp(topSvgOffsetX, 0, 230);
@@ -287,159 +179,210 @@ function update() {
   zipperPosY = math.clamp(zipperPosY, topY, bottomY);
   zipperRange = bottomY - topY;
   openDistance = zipperPosY - topY;
-
-  // Check if zipper is fully down
-  // if (zipperPosY === bottomY) {
-  //   finish();
-  // }
-
-  // Initial black background (before transition)
-  ctx.beginPath();
-  ctx.rect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "black";
-  ctx.fill();
-
-  // Draw the full scene (blue, zipper, etc) at full alpha
-  drawScene(slideOffsetX, 1);
 }
 
-// Draws the blue background, zipper, clipping, stroke, etc.
-// `alpha` controls how transparent the whole scene is.
-function drawScene(slideOffsetX, alpha = 1) {
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.translate(slideOffsetX, 0);
+// ---------------------------------------------------------
+// 7. RENDU / SCÈNE
+// ---------------------------------------------------------
 
-  // bg
-  ctx.beginPath();
-  ctx.rect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#446eb1";
-  ctx.fill();
-
-  // clipping
+// Dessine toute la scène bleue (jean + poches + zip + 1 masqué)
+function drawScene() {
   ctx.save();
   {
-    // prepare clipping mask
-    ctx.beginPath();
-    drawCurve();
-    ctx.clip();
-
-    // draw clipped content
-
+    // Fond noir de base
     ctx.beginPath();
     ctx.rect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "black";
     ctx.fill();
 
-    // ctx.beginPath();
-    // ctx.ellipse(centerX, centerY, 100, 100, 0, 0, Math.PI * 2);
-    // ctx.fillStyle = "green";
-    // ctx.fill();
+    // slide in
+    let slideOffsetX = 0;
 
-    ctx.font = initialFontSize + "px TWK";
+    if (currentState === "intro") {
+      const progress = math.clamp(currentStateTime / SLIDE_IN_DURATION, 0, 1);
+      slideOffsetX = math.lerp(-canvas.width - 400, 0, progress);
+    }
+    ctx.translate(slideOffsetX, 0);
+
+    // Fond bleu (jean)
+    ctx.beginPath();
+    ctx.rect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = JEAN_BLUE;
+    ctx.fill();
+
+    // --------------------
+    // CLIP (courbe + "1" à l'intérieur)
+    // --------------------
+
+    ctx.save();
+    {
+      ctx.beginPath();
+      drawCurve();
+      ctx.clip();
+
+      ctx.beginPath();
+      ctx.rect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "black";
+      ctx.fill();
+
+      if (currentState === "zipper") {
+        ctx.font = INITIAL_FONT_SIZE + "px TWK";
+        ctx.fillStyle = "white";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        // "1" masqué → même centre que les autres
+        ctx.fillText("1", oneCenterX, oneCenterY);
+      }
+    }
+    ctx.restore();
+
+    // Bord noir de la courbe
+    ctx.beginPath();
+    drawCurve();
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    // ligne horizontale en haut
+    ctx.beginPath();
+    ctx.moveTo(0, topY);
+    ctx.lineTo(canvas.width, topY);
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    // Zipper (goutte blanche + ligne)
+    const ellipseWidth = 80;
+    const ellipseHeight = 80;
+    const offsetX = math.mapClamped(openDistance, 0, 100, 0, 100);
+
+    // ligne verticale qui se déplace avec l'ouverture
+    ctx.beginPath();
+    ctx.moveTo(centerX - 113 + offsetX, 0);
+    ctx.lineTo(centerX - 113 + offsetX, topY);
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    // panneaux bleus latéraux (gauche/droite)
+    ctx.beginPath();
+    ctx.rect(centerX - 1050, topY - 300, 100, 330);
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 4;
+    ctx.fillStyle = JEAN_BLUE;
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.rect(centerX + 950, topY - 300, 100, 330);
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 4;
+    ctx.fillStyle = JEAN_BLUE;
+    ctx.fill();
+    ctx.stroke();
+
+    // ellipse blanche (haut du zip)
+    ctx.beginPath();
+    ctx.ellipse(
+      centerX + offsetX,
+      topY / 2,
+      ellipseWidth,
+      ellipseHeight,
+      0,
+      0,
+      Math.PI * 2
+    );
     ctx.fillStyle = "white";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+    ctx.fill();
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 3;
+    ctx.stroke();
 
-    ctx.fillText("1", centerX - 20, centerY - 210);
+    // slider (fermeture éclair) limité à la zone sous la ligne horizontale
+    ctx.save();
+    {
+      ctx.beginPath();
+      ctx.rect(
+        centerX - zipperHandleWidth / 2,
+        topY,
+        zipperHandleWidth,
+        canvas.height - topY
+      );
+      ctx.clip();
+
+      ctx.drawImage(
+        svg,
+        centerX - zipperHandleWidth / 2,
+        zipperPosY - zipperHandleHeight / 2,
+        zipperHandleWidth,
+        zipperHandleHeight
+      );
+    }
+    ctx.restore();
+
+    // top image : jean + poches (tout sur la même image → disparaît ensemble avec alpha)
+    ctx.drawImage(
+      topSvg,
+      centerX + topSvgOffsetX - topImageWidth / 2,
+      topY - topImageHeight / 2 + 537.5,
+      topImageWidth,
+      topImageHeight
+    );
   }
   ctx.restore();
 
-  // draw stroke
-
-  ctx.beginPath();
-  drawCurve();
-  ctx.strokeStyle = "black";
-  ctx.lineWidth = 4;
-  ctx.stroke();
-
-  // horizontal line on top
-  ctx.beginPath();
-  ctx.moveTo(0, topY); // Start at left edge of canvas
-  ctx.lineTo(canvas.width, topY); // Draw to right edge of canvas
-  ctx.strokeStyle = "black"; // Line color
-  ctx.lineWidth = 4; // Line thickness (same as zipper stroke)
-  ctx.stroke();
-
-  // zipper
-  const ellipseWidth = 80; // Horizontal radius
-  const ellipseHeight = 80; // Vertical radius (makes it oval-shaped)
-  const offsetX = math.mapClamped(openDistance, 0, 100, 0, 100);
-
-  // vertical line at center - moves with the curve
-  ctx.beginPath();
-  ctx.moveTo(centerX - 113 + offsetX, 0); // Start far left, moves toward center with offsetX
-  ctx.lineTo(centerX - 113 + offsetX, topY); // Draw to horizontal line
-  ctx.strokeStyle = "black"; // Line color
-  ctx.lineWidth = 4; // Line thickness (same as zipper stroke)
-  ctx.stroke();
-
-  // rectangle
-  ctx.beginPath();
-  ctx.rect(centerX - 1050, topY - 300, 100, 330);
-  ctx.strokeStyle = "black";
-  ctx.lineWidth = 4;
-  ctx.fillStyle = "#446eb1";
-  ctx.fill();
-  ctx.stroke();
-
-  // rectangle
-  ctx.beginPath();
-  ctx.rect(centerX + 950, topY - 300, 100, 330);
-  ctx.strokeStyle = "black";
-  ctx.lineWidth = 4;
-  ctx.fillStyle = "#446eb1";
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.ellipse(
-    centerX + offsetX,
-    topY / 2,
-    ellipseWidth,
-    ellipseHeight,
-    0,
-    0,
-    Math.PI * 2
-  );
-
-  ctx.fillStyle = "white";
-  ctx.fill();
-  ctx.strokeStyle = "black";
-  ctx.lineWidth = 3;
-  ctx.stroke();
-
-  // Clip the slider to only show area below the horizontal line
+  // Overlay noir progressif pendant le zoom
   ctx.save();
-  ctx.beginPath();
-  ctx.rect(
-    centerX - zipperHandleWidth / 2,
-    topY,
-    zipperHandleWidth,
-    canvas.height - topY
-  );
-  ctx.clip();
-
-  ctx.drawImage(
-    svg,
-    centerX - zipperHandleWidth / 2,
-    zipperPosY - zipperHandleHeight / 2,
-    zipperHandleWidth,
-    zipperHandleHeight
-  );
-
+  {
+    let alpha = 1;
+    if (currentState === "numberScale") {
+      alpha = math.mapClamped(currentStateTime, 0, NUMBER_ZOOM_DURATION, 1, 0);
+    }
+    ctx.beginPath();
+    ctx.rect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "rgba(0, 0, 0, " + (1 - alpha) + ")";
+    ctx.fill();
+  }
   ctx.restore();
 
-  // top image fly
-  ctx.drawImage(
-    topSvg,
-    centerX + topSvgOffsetX - topImageWidth / 2, // Center horizontally on the zipper line with offset
-    topY - topImageHeight / 2 + 537.5, // Position at the top of the zipper curve
-    topImageWidth,
-    topImageHeight
-  );
+  // -------------------------------------------------------
+  // "1" qui zoome et se recentre
+  // -------------------------------------------------------
+  if (currentState == "numberScale") {
+    let t = currentStateTime / NUMBER_ZOOM_DURATION;
+    t = math.clamp(t, 0, 1);
+    const fontSize = math.lerp(INITIAL_FONT_SIZE, FINAL_FONT_SIZE, t);
 
-  ctx.restore(); // Restore from transition translate + alpha
+    // interpolation de la position vers le centre
+    const animatedX = math.lerp(oneCenterX, centerX, t);
+    const animatedY = math.lerp(oneCenterY, centerY, t);
+
+    ctx.save();
+    ctx.font = fontSize + "px TWK";
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("1", animatedX, animatedY);
+    ctx.restore();
+  }
+
+  // -------------------------------------------------------
+  // "1" final centré + fade-out
+  // -------------------------------------------------------
+  if (currentState === "endFadeout") {
+    const oneOpacity = Math.max(0, 1 - currentStateTime / ONE_FADE_DURATION);
+
+    ctx.save();
+    ctx.globalAlpha = oneOpacity;
+    ctx.font = FINAL_FONT_SIZE + "px TWK";
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("1", centerX, centerY);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
 }
 
 function drawCurve() {
@@ -465,13 +408,101 @@ function drawCurve() {
   );
 }
 
-async function loadSvg(path) {
-  return new Promise((resolve, reject) => {
-    const svg = document.createElement("img");
-    svg.src = path;
-    svg.addEventListener("load", (e) => {
-      resolve(svg);
-      console.log("loaded" + path);
-    });
-  });
+// ---------------------------------------------------------
+// 8. BOUCLE PRINCIPALE
+// ---------------------------------------------------------
+
+function update(dt) {
+  // Mise à jour des centres
+  centerX = canvas.width / 2;
+  centerY = canvas.height / 2;
+
+  // Position commune du "1" (avant anim)
+  oneCenterX = centerX - 20;
+  oneCenterY = centerY - 210;
+
+  let newState = null;
+  switch (currentState) {
+    case "intro": {
+      if (currentStateTime >= SLIDE_IN_DURATION) {
+        newState = "zipper";
+      }
+      break;
+    }
+    case "zipper": {
+      // ---- état normal : jean + poches + zip actifs ----
+
+      // Zones interactives
+      const isOverSliderHandle =
+        input.getX() >= centerX - zipperHandleWidth / 2 &&
+        input.getX() <= centerX + zipperHandleWidth / 2 &&
+        input.getY() >= zipperPosY - zipperHandleHeight / 2 &&
+        input.getY() <= zipperPosY + zipperHandleHeight / 2;
+
+      const isOverTopSvg =
+        input.getX() >= centerX + topSvgOffsetX - topImageWidth / 2 &&
+        input.getX() <= centerX + topSvgOffsetX + topImageWidth / 2 &&
+        input.getY() >= topY - topImageHeight / 2 + 537 &&
+        input.getY() <= topY - topImageHeight / 2 + 537 + topImageHeight;
+
+      const isOverNumberOne = computeNumberOneHitbox();
+
+      // Gestion des clics / drags
+      handlePressLogic(isOverSliderHandle, isOverTopSvg, isOverNumberOne);
+      updateDragging();
+
+      // Clic sur le "1" quand la fermeture éclair est tout en bas
+      if (
+        input.isPressed() &&
+        zipperPosY === bottomY &&
+        isOverNumberOne &&
+        !isDragging &&
+        !isTopSvgDragging
+      ) {
+        newState = "pendingNumberTransition";
+      }
+      break;
+    }
+    case "pendingNumberTransition": {
+      // clic pour lancer le fade-out / zoom
+      if (input.isPressed()) {
+        newState = "numberScale";
+      }
+      break;
+    }
+    case "numberScale": {
+      if (input.isPressed() && currentStateTime >= NUMBER_ZOOM_DURATION) {
+        newState = "endFadeout";
+      }
+      break;
+    }
+    case "endFadeout": {
+      if (currentStateTime >= ONE_FADE_DURATION) {
+        finish();
+      }
+      break;
+    }
+  }
+
+  currentStateTime += dt;
+
+  if (newState !== null) {
+    currentState = newState;
+    currentStateTime = 0;
+    console.log("enter state: " + currentState);
+
+    // enter new state
+    switch (currentState) {
+      case "pendingNumberTransition": {
+        stopZipperSound();
+        break;
+      }
+      case "numberScale": {
+        break;
+      }
+    }
+  }
+
+  // Scène complète (bleu + jean + poches + zip + 1 masqué)
+  drawScene();
 }

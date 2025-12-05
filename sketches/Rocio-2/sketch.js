@@ -261,10 +261,14 @@ function update(dt) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
-  const scale = 1 + (1 - fadeOutOpacity) * 12.995;
+  // Growth starts only after ticket fades out completely
+  const growthProgress =
+    Math.max(0, 1 - fadeOutOpacity - fadeOutDuration * 0.5) /
+    (1 - fadeOutDuration * 0.5);
+  const scale = 1 + growthProgress * 12.995;
 
-  const currentX = originalX + (centerX - originalX) * (1 - fadeOutOpacity);
-  const currentY = originalY + (centerY - originalY) * (1 - fadeOutOpacity);
+  const currentX = originalX + (centerX - originalX) * growthProgress;
+  const currentY = originalY + (centerY - originalY) * growthProgress;
 
   ctx.save();
   ctx.translate(currentX, currentY);
@@ -272,7 +276,7 @@ function update(dt) {
   ctx.globalAlpha = ceroOpacity;
   ctx.fillText("2", 0, 0);
 
-  const strokeOpacity = Math.max(0, 1 - (scale - 1) / 12.995);
+  const strokeOpacity = fadeOutOpacity > 0.99 ? 1 : 0;
   ctx.globalAlpha = ceroOpacity * strokeOpacity;
   ctx.strokeText("2", 0, 0);
   ctx.globalAlpha = 1;
