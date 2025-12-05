@@ -7,11 +7,11 @@ const { ctx, canvas } = renderer;
 // ---------- SONS ----------
 const brickPop = await audio.load("assets-typo/brick-sound.wav"); // adapte le chemin
 
-const brickW = 300,
-  brickH = 78;
+const brickW = 600,
+  brickH = 208;
 const bricks = [];
 let buildIndex = 0;
-const buildSpeed = 5;
+const buildSpeed = 50;
 let numberOpacity = 1;
 
 const viewportWidth = canvas.width;
@@ -45,17 +45,20 @@ for (let r = 0; r < Math.ceil(viewportHeight / brickH); r++) {
 }
 
 // reveal bricks one by one
-setInterval(() => {
-  if (buildIndex < bricks.length) {
-    bricks[buildIndex].visible = true;
-    buildIndex++;
+//here i just delayed the start of the interval by 1 second
+setTimeout(function () {
+  setInterval(() => {
+    if (buildIndex < bricks.length) {
+      bricks[buildIndex].visible = true;
+      buildIndex++;
 
-    // ✅ quand on a tout affiché → fin de l’intro
-    if (buildIndex >= bricks.length) {
-      introFinished = true;
+      // ✅ quand on a tout affiché → fin de l’intro
+      if (buildIndex >= bricks.length) {
+        introFinished = true;
+      }
     }
-  }
-}, buildSpeed);
+  }, buildSpeed);
+}, 1000);
 
 // ---------- PHYSICS ----------
 function isSupported(brick) {
