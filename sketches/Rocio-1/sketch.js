@@ -19,8 +19,8 @@ const topImageHeight = 1100;
 
 // Transitions
 const SLIDE_IN_DURATION = 1.5; // s
-const NUMBER_ZOOM_DURATION = 1.5; // s
-const ONE_FADE_DURATION = 1000; // ms
+const NUMBER_ZOOM_DURATION = 0.4; // s
+const ONE_FADE_DURATION = 1; // s
 
 // Taille du "1"
 const INITIAL_FONT_SIZE = 990;
@@ -185,8 +185,37 @@ function updateDragging() {
 // 7. RENDU / SCÈNE
 // ---------------------------------------------------------
 
-// Dessine toute la scène bleue (jean + poches + zip + 1 masqué)
+// Dessine toute la scène
 function drawScene() {
+  // -------------------------------------------------------
+  // ÉTAT FINAL : écran noir + "1" qui fade out
+  // -------------------------------------------------------
+  if (currentState === "endFadeout") {
+    // Fond noir plein
+    ctx.beginPath();
+    ctx.rect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "black";
+    ctx.fill();
+
+    // Opacité du "1"
+    const oneOpacity = Math.max(0, 1 - currentStateTime / ONE_FADE_DURATION);
+
+    ctx.save();
+    ctx.globalAlpha = oneOpacity;
+    ctx.font = FINAL_FONT_SIZE + "px TWK";
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("1", centerX, centerY + 150);
+    ctx.restore();
+
+    // IMPORTANT : on ne redessine pas la scène bleue
+    return;
+  }
+
+  // -------------------------------------------------------
+  // ÉTATS INTRO / ZIPPER / NUMBER_SCALE : scène bleue
+  // -------------------------------------------------------
   ctx.save();
   {
     // Fond noir de base
@@ -332,14 +361,14 @@ function drawScene() {
   }
   ctx.restore();
 
-  // Overlay noir progressif durante el zoom
+  // -------------------------------------------------------
+  // Overlay noir progressif pendant le zoom (numberScale)
+  // -------------------------------------------------------
   ctx.save();
   {
     let alpha = 1;
     if (currentState === "numberScale") {
       alpha = math.mapClamped(currentStateTime, 0, NUMBER_ZOOM_DURATION, 1, 0);
-    } else if (currentState === "endFadeout") {
-      alpha = 0; // No overlay during fade-out
     }
     ctx.beginPath();
     ctx.rect(0, 0, canvas.width, canvas.height);
@@ -356,7 +385,7 @@ function drawScene() {
     t = math.clamp(t, 0, 1);
     const fontSize = math.lerp(INITIAL_FONT_SIZE, FINAL_FONT_SIZE, t);
 
-    // interpolation de la position vers le centre
+    // interpolation de la position vers le centre (un peu plus bas)
     const animatedX = math.lerp(oneCenterX, centerX, t);
     const animatedY = math.lerp(oneCenterY, centerY + 150, t);
 
@@ -366,23 +395,6 @@ function drawScene() {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("1", animatedX, animatedY);
-    ctx.restore();
-  }
-
-  // -------------------------------------------------------
-  // "1" final centré + fade-out
-  // -------------------------------------------------------
-  if (currentState === "endFadeout") {
-    const oneOpacity = Math.max(0, 1 - currentStateTime / ONE_FADE_DURATION);
-
-    ctx.save();
-    ctx.globalAlpha = oneOpacity;
-    ctx.font = FINAL_FONT_SIZE + "px TWK";
-    ctx.fillStyle = "white";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("1", centerX, centerY + 150);
-    ctx.globalAlpha = 1;
     ctx.restore();
   }
 }
@@ -466,19 +478,21 @@ function update(dt) {
       break;
     }
     case "pendingNumberTransition": {
-      // clic pour lancer le fade-out / zoom
+      // clic pour lancer le zoom
       if (input.isPressed()) {
         newState = "numberScale";
       }
       break;
     }
     case "numberScale": {
+      // quand le zoom est fini et qu'on reclique → fade out final
       if (input.isPressed() && currentStateTime >= NUMBER_ZOOM_DURATION) {
         newState = "endFadeout";
       }
       break;
     }
     case "endFadeout": {
+      // quand le "1" est totalement invisible → fin
       if (currentStateTime >= ONE_FADE_DURATION) {
         finish();
       }
@@ -502,9 +516,13 @@ function update(dt) {
       case "numberScale": {
         break;
       }
+      case "endFadeout": {
+        // rien de spécial, on gère tout dans drawScene
+        break;
+      }
     }
   }
 
-  // Scène complète (bleu + jean + poches + zip + 1 masqué)
+  // Scène complète
   drawScene();
 }

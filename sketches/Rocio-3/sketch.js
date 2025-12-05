@@ -5,7 +5,7 @@ const { renderer, input, math, run, finish, audio } = createEngine();
 const { ctx, canvas } = renderer;
 
 // ---------- SONS ----------
-const brickPop = await audio.load("assets-typo/brick-sound.wav"); // adapte le chemin
+const brickPop = await audio.load("assets-typo/brick-soundv2.mp3"); // adapte le chemin
 
 const brickW = 300 * window.devicePixelRatio,
   brickH = 104 * window.devicePixelRatio;

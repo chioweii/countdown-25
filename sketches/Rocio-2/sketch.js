@@ -80,7 +80,7 @@ img.src = "./assets-ticket/ticket.svg";
 
 // ==================== AUDIO ====================
 // Chemin à adapter à ton projet
-const SCRATCH_SOUND_SRC = "./assets-ticket/scratch-sound.mp3";
+const SCRATCH_SOUND_SRC = "./assets-ticket/scratch-soundv2.mp3";
 
 const scratchSound = new Audio(SCRATCH_SOUND_SRC);
 scratchSound.volume = 0.8;
@@ -134,7 +134,8 @@ function update(dt) {
       if (scratchingComplete) {
         ceroFadeStart = Date.now();
       }
-      // démarrer le son de scratch
+    } else {
+      // démarrer le son de scratch (only if scratching is not complete)
       startScratchSound();
     }
 
