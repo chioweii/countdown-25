@@ -85,7 +85,7 @@ function physics() {
   for (let brick of bricks) {
     if (!brick.visible) continue;
 
-    if (!isSupported(brick)) brick.vy += 0.5;
+    if (!isSupported(brick)) brick.vy += 1;
     else brick.vy = 0;
 
     brick.y += brick.vy;
